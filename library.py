@@ -265,6 +265,50 @@ class CustomDropColumnsTransformer(BaseEstimator, TransformerMixin):
                 warnings.warn(f'{self.__class__.__name__}.transform columns not found and skipped in "drop": {missing}')
             return X_.drop(columns=self.column_list, errors='ignore')
 
+class CustomPearsonTransformer(BaseEstimator, TransformerMixin):
+    """
+    A custom scikit-learn transformer that removes highly correlated features
+    based on Pearson correlation.
+
+    Parameters
+    ----------
+    threshold : float
+        The correlation threshold above which features are considered too highly correlated
+        and will be removed.
+
+    Attributes
+    ----------
+    correlated_columns : Optional[List[Hashable]]
+        A list of column names that are identified as highly correlated and will be removed.
+    """
+
+    def __init__(self, threshold: float = 0.4):
+        self.threshold = threshold
+        self.correlated_columns: Optional[List[Hashable]] = None
+
+    def fit(self, X: pd.DataFrame, y: Optional[Iterable] = None) -> Self:
+        assert isinstance(X, pd.DataFrame), f'{self.__class__.__name__}.fit expected DataFrame but got {type(X)} instead.'
+
+        numeric_df = X.select_dtypes(include=[np.number])
+        corr_matrix = numeric_df.corr().abs()
+        mask = np.triu(corr_matrix.values, k=1).astype(bool)
+
+        self.correlated_columns = [
+            col for col_idx, col in enumerate(corr_matrix.columns)
+            if np.any(mask[:, col_idx])
+        ]
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        assert self.correlated_columns is not None, f"{self.__class__.__name__}.transform called before fit."
+
+        X_ = X.copy()
+        return X_.drop(columns=self.correlated_columns, errors='ignore')
+
+    def fit_transform(self, X: pd.DataFrame, y: Optional[Iterable] = None) -> pd.DataFrame:
+        return self.fit(X, y).transform(X)
+
+
 #first define the pipeline
 titanic_transformer = Pipeline(steps=[
     ('gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1})),
