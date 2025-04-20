@@ -9,6 +9,7 @@ from typing import (
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 import sklearn
+import warnings
 
 # This sets built-in transformers to output pandas DataFrames
 sklearn.set_config(transform_output="pandas")
