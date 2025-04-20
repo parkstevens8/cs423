@@ -270,13 +270,8 @@ titanic_transformer = Pipeline(steps=[
     ('class', CustomMappingTransformer('Class', {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3})),
     ], verbose=True)
 
-#now invoke it
-transformed_df = titanic_transformer.fit_transform(titanic_features)
 
 customer_transformer = Pipeline(steps=[
     #add drop step below
     ('drop', CustomDropColumnsTransformer(column_list=['ID'], action='drop')),
     ], verbose=True)
-
-#now invoke it
-transformed_df = customer_transformer.fit_transform(customer_features)
