@@ -307,16 +307,141 @@ class CustomPearsonTransformer(BaseEstimator, TransformerMixin):
 
     def fit_transform(self, X: pd.DataFrame, y: Optional[Iterable] = None) -> pd.DataFrame:
         return self.fit(X, y).transform(X)
+class CustomSigma3Transformer(BaseEstimator, TransformerMixin):
+    """
+    A transformer that applies 3-sigma clipping to a specified column in a pandas DataFrame.
 
+    This transformer follows the scikit-learn transformer interface and can be used in
+    a scikit-learn pipeline. It clips values in the target column to be within three standard
+    deviations from the mean.
+
+    Parameters
+    ----------
+    target_column : Hashable
+        The name of the column to apply 3-sigma clipping on.
+
+    Attributes
+    ----------
+    high_wall : Optional[float]
+        The upper bound for clipping, computed as mean + 3 * standard deviation.
+    low_wall : Optional[float]
+        The lower bound for clipping, computed as mean - 3 * standard deviation.
+    """
+
+    def __init__(self, target_column: Hashable):
+        self.target_column = target_column
+        self.low_wall: Optional[float] = None
+        self.high_wall: Optional[float] = None
+
+    def fit(self, X: pd.DataFrame, y=None):
+        if self.target_column not in X.columns:
+            raise ValueError(f"Column '{self.target_column}' not found in DataFrame.")
+
+        if not pd.api.types.is_numeric_dtype(X[self.target_column]):
+            raise TypeError(f"Column '{self.target_column}' must be numeric.")
+
+        mean = X[self.target_column].mean()
+        std = X[self.target_column].std()
+
+        self.low_wall = mean - 3 * std
+        self.high_wall = mean + 3 * std
+
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        if self.low_wall is None or self.high_wall is None:
+            raise ValueError("Transformer has not been fitted yet.")
+
+        X = X.copy()
+        X[self.target_column] = X[self.target_column].clip(lower=self.low_wall, upper=self.high_wall)
+        return X
+    
+class CustomTukeyTransformer(BaseEstimator, TransformerMixin):
+    """
+    A transformer that applies Tukey's fences (inner or outer) to a specified column in a pandas DataFrame.
+
+    This transformer follows the scikit-learn transformer interface and can be used in a scikit-learn pipeline.
+    It clips values in the target column based on Tukey's inner or outer fences.
+
+    Parameters
+    ----------
+    target_column : Hashable
+        The name of the column to apply Tukey's fences on.
+    fence : Literal['inner', 'outer'], default='outer'
+        Determines whether to use the inner fence (1.5 * IQR) or the outer fence (3.0 * IQR).
+
+    Attributes
+    ----------
+    inner_low : Optional[float]
+        The lower bound for clipping using the inner fence (Q1 - 1.5 * IQR).
+    outer_low : Optional[float]
+        The lower bound for clipping using the outer fence (Q1 - 3.0 * IQR).
+    inner_high : Optional[float]
+        The upper bound for clipping using the inner fence (Q3 + 1.5 * IQR).
+    outer_high : Optional[float]
+        The upper bound for clipping using the outer fence (Q3 + 3.0 * IQR).
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({'values': [10, 15, 14, 20, 100, 5, 7]})
+    >>> tukey_transformer = CustomTukeyTransformer(target_column='values', fence='inner')
+    >>> transformed_df = tukey_transformer.fit_transform(df)
+    >>> transformed_df
+    """
+
+    def __init__(self, target_column: Hashable, fence: Literal['inner', 'outer'] = 'outer'):
+        self.target_column = target_column
+        self.fence = fence
+
+        self.inner_low: Optional[float] = None
+        self.inner_high: Optional[float] = None
+        self.outer_low: Optional[float] = None
+        self.outer_high: Optional[float] = None
+
+    def fit(self, X: pd.DataFrame, y=None):
+        if self.target_column not in X.columns:
+            raise ValueError(f"Column '{self.target_column}' not found in DataFrame.")
+        if not pd.api.types.is_numeric_dtype(X[self.target_column]):
+            raise TypeError(f"Column '{self.target_column}' must be numeric.")
+
+        Q1 = X[self.target_column].quantile(0.25)
+        Q3 = X[self.target_column].quantile(0.75)
+        IQR = Q3 - Q1
+
+        self.inner_low = Q1 - 1.5 * IQR
+        self.inner_high = Q3 + 1.5 * IQR
+        self.outer_low = Q1 - 3.0 * IQR
+        self.outer_high = Q3 + 3.0 * IQR
+
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        if self.inner_low is None or self.outer_low is None:
+            raise ValueError("Transformer has not been fitted yet.")
+
+        X = X.copy()
+
+        if self.fence == 'inner':
+            low, high = self.inner_low, self.inner_high
+        elif self.fence == 'outer':
+            low, high = self.outer_low, self.outer_high
+        else:
+            raise ValueError(f"Invalid fence type: {self.fence}. Use 'inner' or 'outer'.")
+
+        X[self.target_column] = X[self.target_column].clip(lower=low, upper=high)
+        return X
 
 #first define the pipeline
 titanic_transformer = Pipeline(steps=[
     ('gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1})),
     ('class', CustomMappingTransformer('Class', {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3})),
+    ('fare', CustomTukeyTransformer(target_column='Fare', fence='outer')),
     ], verbose=True)
 
 
 customer_transformer = Pipeline(steps=[
     #add drop step below
     ('drop', CustomDropColumnsTransformer(column_list=['ID'], action='drop')),
+    ('time spent', CustomTukeyTransformer('Time Spent', 'inner')),
     ], verbose=True)
