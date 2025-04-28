@@ -490,9 +490,52 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
       # Apply robust scaling
       X[self.target_column] = (X[self.target_column] - self.med) / self.iqr
       return X
+
+class CustomKNNTransformer(BaseEstimator, TransformerMixin):
+  """Imputes missing values using KNN.
+
+  This transformer wraps the KNNImputer from scikit-learn and hard-codes
+  add_indicator to be False. It also ensures that the input and output
+  are pandas DataFrames.
+
+  Parameters
+  ----------
+  n_neighbors : int, default=5
+      Number of neighboring samples to use for imputation.
+  weights : {'uniform', 'distance'}, default='uniform'
+      Weight function used in prediction. Possible values:
+      "uniform" : uniform weights. All points in each neighborhood
+      are weighted equally.
+      "distance" : weight points by the inverse of their distance.
+      in this case, closer neighbors of a query point will have a
+      greater influence than neighbors which are further away.
+  """
+  #your code below
+  def __init__(self, n_neighbors=5, weights='uniform'):
+        self.n_neighbors = n_neighbors
+        self.weights = weights
+        self.imputer = KNNImputer(n_neighbors=self.n_neighbors, weights=self.weights)
+
+  def fit(self, X, y=None):
+      if not isinstance(X, pd.DataFrame):
+          X = pd.DataFrame(X)
+      self.imputer.fit(X)
+      # Set a flag or use sklearn's method to ensure it's fitted
+      self._is_fitted = True
+      return self
+
+  def transform(self, X):
+      if not hasattr(self, '_is_fitted'):
+          raise NotFittedError(f"This {type(self).__name__} instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
+      
+      if not isinstance(X, pd.DataFrame):
+          X = pd.DataFrame(X)
+      X_imputed = self.imputer.transform(X)
+      return pd.DataFrame(X_imputed, columns=X.columns, index=X.index)
   
 gender_mapping = {'Male': 0, 'Female': 1, np.nan: -1} #added for nan. You may want to use a different value
 class_mapping = {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: -1} #added for nan. You may want to use a different value
+experience_map = {'low': 0, 'medium': 1, 'high': 2, np.nan: -1}
 
 #first define the pipeline
 titanic_transformer = Pipeline(steps=[
@@ -504,7 +547,10 @@ titanic_transformer = Pipeline(steps=[
 ], verbose=True)
 
 customer_transformer = Pipeline(steps=[
-    #add drop step below
-    ('drop', CustomDropColumnsTransformer(column_list=['ID'], action='drop')),
-    ('time spent', CustomTukeyTransformer('Time Spent', 'inner')),
-    ], verbose=True)
+    ('gender', CustomMappingTransformer('Gender', {'Male': 1, 'Female': 0})),
+    ('experience_level', CustomMappingTransformer('Experience Level', {'low': 0, 'medium': 1, 'high': 2, np.nan: -1})),
+    ('time_spent', CustomRobustTransformer('Time Spent')),
+    ('age', CustomRobustTransformer('Age')),
+    ('os', CustomOHETransformer('OS')),  # Fixed: Pass single column name
+    ('isp', CustomOHETransformer('ISP')),  # Fixed: Pass single column name
+], verbose=True)
