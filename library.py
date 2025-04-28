@@ -499,8 +499,9 @@ titanic_transformer = Pipeline(steps=[
     ('gender', CustomMappingTransformer('Gender', gender_mapping)),
     ('class', CustomMappingTransformer('Class', class_mapping)),
     ('fare', CustomTukeyTransformer(target_column='Fare', fence='outer')),
-    ], verbose=True)
-
+    ('age', CustomRobustTransformer('Age')),
+    ('joined', CustomOHETransformer('Joined')),
+], verbose=True)
 
 customer_transformer = Pipeline(steps=[
     #add drop step below
