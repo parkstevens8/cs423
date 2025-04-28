@@ -175,7 +175,7 @@ class CustomOHETransformer(BaseEstimator, TransformerMixin):
 
         # one-hot encode the target column only
         X_ = X.copy()
-        dummies = pd.get_dummies(X_[self.target_column], prefix=self.target_column)
+        dummies = pd.get_dummies(X_[self.target_column], prefix=self.target_column).astype(int)  # Convert to int for 0/1 output
         X_ = X_.drop(columns=[self.target_column])
         X_ = pd.concat([X_, dummies], axis=1)
         return X_
@@ -498,9 +498,9 @@ class_mapping = {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: -1} #added for na
 titanic_transformer = Pipeline(steps=[
     ('gender', CustomMappingTransformer('Gender', gender_mapping)),
     ('class', CustomMappingTransformer('Class', class_mapping)),
-    ('fare', CustomTukeyTransformer(target_column='Fare', fence='outer')),
     ('age', CustomRobustTransformer('Age')),
     ('joined', CustomOHETransformer('Joined')),
+    ('fare', CustomRobustTransformer('Fare')),  # Changed to RobustTransformer to match the expected scaling
 ], verbose=True)
 
 customer_transformer = Pipeline(steps=[
