@@ -490,6 +490,9 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
       # Apply robust scaling
       X[self.target_column] = (X[self.target_column] - self.med) / self.iqr
       return X
+  
+gender_mapping = {'Male': 0, 'Female': 1, np.nan: -1} #added for nan. You may want to use a different value
+class_mapping = {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: -1} #added for nan. You may want to use a different value
 
 #first define the pipeline
 titanic_transformer = Pipeline(steps=[
