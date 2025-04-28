@@ -496,8 +496,8 @@ class_mapping = {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: -1} #added for na
 
 #first define the pipeline
 titanic_transformer = Pipeline(steps=[
-    ('gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1})),
-    ('class', CustomMappingTransformer('Class', {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3})),
+    ('gender', CustomMappingTransformer('Gender', gender_mapping)),
+    ('class', CustomMappingTransformer('Class', class_mapping)),
     ('fare', CustomTukeyTransformer(target_column='Fare', fence='outer')),
     ], verbose=True)
 
