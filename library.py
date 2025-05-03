@@ -533,6 +533,99 @@ class CustomKNNTransformer(BaseEstimator, TransformerMixin):
       X_imputed = self.imputer.transform(X)
       return pd.DataFrame(X_imputed, columns=X.columns, index=X.index)
   
+class CustomTargetTransformer(BaseEstimator, TransformerMixin):
+    """
+    A target encoder that applies smoothing and returns np.nan for unseen categories.
+
+    Parameters:
+    -----------
+    col: name of column to encode.
+    smoothing : float, default=10.0
+        Smoothing factor. Higher values give more weight to the global mean.
+    """
+
+    def __init__(self, col: str, smoothing: float =10.0):
+        self.col = col
+        self.smoothing = smoothing
+        self.global_mean_ = None
+        self.encoding_dict_ = None
+
+    def fit(self, X, y):
+        """
+        Fit the target encoder using training data.
+
+        Parameters:
+        -----------
+        X : array-like of shape (n_samples, n_features)
+            Training data features.
+        y : array-like of shape (n_samples,)
+            Target values.
+        """
+        assert isinstance(X, pd.core.frame.DataFrame), f'{self.__class__.__name__}.fit expected Dataframe but got {type(X)} instead.'
+        assert self.col in X, f'{self.__class__.__name__}.fit column not in X: {self.col}. Actual columns: {X.columns}'
+        assert isinstance(y, Iterable), f'{self.__class__.__name__}.fit expected Iterable but got {type(y)} instead.'
+        assert len(X) == len(y), f'{self.__class__.__name__}.fit X and y must be same length but got {len(X)} and {len(y)} instead.'
+
+        #Create new df with just col and target - enables use of pandas methods below
+        X_ = X[[self.col]]
+        target = self.col+'_target_'
+        X_[target] = y
+
+        # Calculate global mean
+        self.global_mean_ = X_[target].mean()
+
+        # Get counts and means
+        counts = X_[self.col].value_counts().to_dict()    #dictionary of unique values in the column col and their counts
+        means = X_[target].groupby(X_[self.col]).mean().to_dict() #dictionary of unique values in the column col and their means
+
+        # Calculate smoothed means
+        smoothed_means = {}
+        for category in counts.keys():
+            n = counts[category]
+            category_mean = means[category]
+            # Apply smoothing formula: (n * cat_mean + m * global_mean) / (n + m)
+            smoothed_mean = (n * category_mean + self.smoothing * self.global_mean_) / (n + self.smoothing)
+            smoothed_means[category] = smoothed_mean
+
+        self.encoding_dict_ = smoothed_means
+
+        return self
+
+    def transform(self, X):
+        """
+        Transform the data using the fitted target encoder.
+        Unseen categories will be encoded as np.nan.
+
+        Parameters:
+        -----------
+        X : array-like of shape (n_samples, n_features)
+            Input data to transform.
+        """
+
+        assert isinstance(X, pd.core.frame.DataFrame), f'{self.__class__.__name__}.transform expected Dataframe but got {type(X)} instead.'
+        assert self.encoding_dict_, f'{self.__class__.__name__}.transform not fitted'
+
+        X_ = X.copy()
+
+        # Map categories to smoothed means, naturally producing np.nan for unseen categories, i.e.,
+        # when map tries to look up a value in the dictionary and doesn't find the key, it automatically returns np.nan. That is what we want.
+        X_[self.col] = X_[self.col].map(self.encoding_dict_)
+
+        return X_
+
+    def fit_transform(self, X, y):
+        """
+        Fit the target encoder and transform the input data.
+
+        Parameters:
+        -----------
+        X : array-like of shape (n_samples, n_features)
+            Training data features.
+        y : array-like of shape (n_samples,)
+            Target values.
+        """
+        return self.fit(X, y).transform(X)
+  
 gender_mapping = {'Male': 0, 'Female': 1, np.nan: -1} #added for nan. You may want to use a different value
 class_mapping = {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: -1} #added for nan. You may want to use a different value
 experience_map = {'low': 0, 'medium': 1, 'high': 2, np.nan: -1}
