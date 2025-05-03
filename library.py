@@ -125,18 +125,26 @@ class CustomMappingTransformer(BaseEstimator, TransformerMixin):
         assert self.mapping_column in X.columns.to_list(), f'{self.__class__.__name__}.transform unknown column "{self.mapping_column}"'  #column legit?
         warnings.filterwarnings('ignore', message='.*downcasting.*')  #squash warning in replace method below
 
-        #now check to see if all keys are contained in column
-        column_set: Set[Any] = set(X[self.mapping_column].unique())
-        keys_not_found: Set[Any] = set(self.mapping_dict.keys()) - column_set
+        # Get unique non-NaN values
+        non_nan_values = set(X[self.mapping_column].dropna().unique())
+        
+        # Check for keys not found in column values
+        keys_not_found = set(k for k in self.mapping_dict.keys() if not pd.isna(k)) - non_nan_values
         if keys_not_found:
             print(f"\nWarning: {self.__class__.__name__}[{self.mapping_column}] does not contain these keys as values {keys_not_found}\n")
 
-        #now check to see if some keys are absent
-        keys_absent: Set[Any] = column_set - set(self.mapping_dict.keys())
-        if keys_absent:
-            print(f"\nWarning: {self.__class__.__name__}[{self.mapping_column}] does not contain keys for these values {keys_absent}\n")
+        # Check for values without mapping keys
+        has_nan_in_data = X[self.mapping_column].isna().any()
+        has_nan_in_mapping = any(pd.isna(k) for k in self.mapping_dict.keys())
+        
+        keys_absent = non_nan_values - set(k for k in self.mapping_dict.keys() if not pd.isna(k))
+        if keys_absent or (has_nan_in_data and not has_nan_in_mapping):
+            missing_values = keys_absent
+            if has_nan_in_data and not has_nan_in_mapping:
+                missing_values = missing_values | {np.nan}
+            print(f"\nWarning: {self.__class__.__name__}[{self.mapping_column}] does not contain keys for these values {missing_values}\n")
 
-        X_: pd.DataFrame = X.copy()
+        X_ = X.copy()
         X_[self.mapping_column] = X_[self.mapping_column].replace(self.mapping_dict)
         return X_
 
@@ -711,6 +719,6 @@ customer_transformer = Pipeline(steps=[
     ('experience_level', CustomMappingTransformer('Experience Level', {'low': 0, 'medium': 1, 'high': 2, np.nan: -1})),
     ('time_spent', CustomRobustTransformer('Time Spent')),
     ('age', CustomRobustTransformer('Age')),
-    ('os', CustomOHETransformer('OS')),  # Fixed: Pass single column name
-    ('isp', CustomOHETransformer('ISP')),  # Fixed: Pass single column name
+    ('os', CustomOHETransformer('OS')),
+    ('isp', CustomOHETransformer('ISP'))
 ], verbose=True)
