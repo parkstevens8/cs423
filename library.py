@@ -176,7 +176,8 @@ class CustomOHETransformer(BaseEstimator, TransformerMixin):
 
         # one-hot encode the target column only
         X_ = X.copy()
-        dummies = pd.get_dummies(X_[self.target_column], prefix=self.target_column).astype(int)  # Convert to int for 0/1 output
+        # Add dummy_na=True to create a column for NaN values
+        dummies = pd.get_dummies(X_[self.target_column], prefix=self.target_column, dummy_na=True).astype(int)
         X_ = X_.drop(columns=[self.target_column])
         X_ = pd.concat([X_, dummies], axis=1)
         return X_
@@ -426,7 +427,7 @@ class CustomTukeyTransformer(BaseEstimator, TransformerMixin):
         return X
 
 class CustomRobustTransformer(BaseEstimator, TransformerMixin):
-  """Applies robust scaling to a specified column in a pandas DataFrame.
+    """Applies robust scaling to a specified column in a pandas DataFrame.
     This transformer calculates the interquartile range (IQR) and median
     during the `fit` method and then uses these values to scale the
     target column in the `transform` method.
@@ -444,45 +445,46 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
         The interquartile range of the target column.
     med : float
         The median of the target column.
-  """
+    """
 
-  def __init__(self, target_column: str):
+    def __init__(self, target_column: str):
         self.target_column = target_column
         self.iqr = None
         self.med = None
         self.is_fitted_ = False  # Track fit status
 
-  def fit(self, X, y=None):
-      # Check if column exists
-      if self.target_column not in X.columns:
-          raise AssertionError(f"CustomRobustTransformer.fit unrecognizable column {self.target_column}.")
+    def fit(self, X, y=None):
+        # Check if column exists
+        if self.target_column not in X.columns:
+            raise AssertionError(f"CustomRobustTransformer.fit unrecognizable column {self.target_column}.")
 
-      # Extract target column
-      col_data = X[self.target_column]
-      # Compute median and IQR
-      self.med = col_data.median()
-      q1 = col_data.quantile(0.25)
-      q3 = col_data.quantile(0.75)
-      self.iqr = q3 - q1
+        # Extract target column
+        col_data = X[self.target_column]
+        # Compute median and IQR
+        self.med = col_data.median()
+        q1 = col_data.quantile(0.25)
+        q3 = col_data.quantile(0.75)
+        self.iqr = q3 - q1
 
-      self.is_fitted_ = True  # Mark as fitted
-      return self  # For chaining
+        self.is_fitted_ = True  # Mark as fitted
+        return self  # For chaining
 
-  def transform(self, X):
-      if not self.is_fitted_:
-          raise NotFittedError(f"This {self.__class__.__name__} instance is not fitted yet. "
+    def transform(self, X):
+        if not self.is_fitted_:
+            raise NotFittedError(f"This {self.__class__.__name__} instance is not fitted yet. "
                                 f"Call 'fit' with appropriate arguments before using this transformer.")
 
-      X = X.copy()
+        # Create a deep copy to avoid SettingWithCopyWarning
+        X_ = X.copy(deep=True)
 
-      # Skip if IQR == 0
-      if self.iqr == 0 or pd.isna(self.iqr):
-          print(f"Skipping transformation for column '{self.target_column}' due to IQR=0")
-          return X
+        # Skip if IQR == 0
+        if self.iqr == 0 or pd.isna(self.iqr):
+            print(f"Skipping transformation for column '{self.target_column}' due to IQR=0")
+            return X_
 
-      # Apply robust scaling
-      X[self.target_column] = (X[self.target_column] - self.med) / self.iqr
-      return X
+        # Use loc to avoid SettingWithCopyWarning
+        X_.loc[:, self.target_column] = (X_[self.target_column] - self.med) / self.iqr
+        return X_
 
 class CustomKNNTransformer(BaseEstimator, TransformerMixin):
   """Imputes missing values using KNN.
@@ -705,7 +707,7 @@ titanic_transformer = Pipeline(steps=[
 ], verbose=True)
 
 customer_transformer = Pipeline(steps=[
-    ('gender', CustomMappingTransformer('Gender', {'Male': 1, 'Female': 0})),
+    ('gender', CustomMappingTransformer('Gender', {'Male': 1, 'Female': 0, np.nan: -1})),
     ('experience_level', CustomMappingTransformer('Experience Level', {'low': 0, 'medium': 1, 'high': 2, np.nan: -1})),
     ('time_spent', CustomRobustTransformer('Time Spent')),
     ('age', CustomRobustTransformer('Age')),
