@@ -8,6 +8,7 @@ from typing import (
 )
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
+from sklearn.impute import KNNImputer
 import sklearn
 import warnings
 
@@ -380,18 +381,10 @@ class CustomTukeyTransformer(BaseEstimator, TransformerMixin):
         The upper bound for clipping using the inner fence (Q3 + 1.5 * IQR).
     outer_high : Optional[float]
         The upper bound for clipping using the outer fence (Q3 + 3.0 * IQR).
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({'values': [10, 15, 14, 20, 100, 5, 7]})
-    >>> tukey_transformer = CustomTukeyTransformer(target_column='values', fence='inner')
-    >>> transformed_df = tukey_transformer.fit_transform(df)
-    >>> transformed_df
     """
 
     def __init__(self, target_column: Hashable, fence: Literal['inner', 'outer'] = 'outer'):
-        self.target_column = target_column
+        self.target_column = str(target_column)  # Convert to string to handle column names with spaces
         self.fence = fence
 
         self.inner_low: Optional[float] = None
@@ -440,7 +433,7 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
 
     Parameters
     ----------
-    column : str
+    target_column : str
         The name of the column to be scaled.
 
     Attributes
@@ -453,8 +446,8 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
         The median of the target column.
   """
 
-  def __init__(self, column):
-        self.target_column = column
+  def __init__(self, target_column: str):
+        self.target_column = target_column
         self.iqr = None
         self.med = None
         self.is_fitted_ = False  # Track fit status
