@@ -493,8 +493,10 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
             print(f"Skipping transformation for column '{self.target_column}' due to IQR=0")
             return X_
 
-        # Convert column to float64 and perform calculation all at once using loc
-        X_.loc[:, self.target_column] = ((X_[self.target_column].astype('float64') - self.med) / self.iqr)
+        # Convert column to float64 before calculation
+        X_[self.target_column] = X_[self.target_column].astype('float64')
+        # Use loc to avoid SettingWithCopyWarning
+        X_.loc[:, self.target_column] = (X_[self.target_column] - self.med) / self.iqr
         return X_
 
 class CustomKNNTransformer(BaseEstimator, TransformerMixin):
@@ -572,10 +574,10 @@ class CustomTargetTransformer(BaseEstimator, TransformerMixin):
         assert isinstance(y, Iterable), f'{self.__class__.__name__}.fit expected Iterable but got {type(y)} instead.'
         assert len(X) == len(y), f'{self.__class__.__name__}.fit X and y must be same length but got {len(X)} and {len(y)} instead.'
 
-        #Create new df with just col and target - enables use of pandas methods below
-        X_ = X[[self.col]]
+        # Create new df with just col and target
+        X_ = pd.DataFrame({self.col: X[self.col].copy()})
         target = self.col+'_target_'
-        X_[target] = y
+        X_.loc[:, target] = y
 
         # Calculate global mean
         self.global_mean_ = X_[target].mean()
