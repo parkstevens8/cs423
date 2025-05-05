@@ -493,10 +493,8 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
             print(f"Skipping transformation for column '{self.target_column}' due to IQR=0")
             return X_
 
-        # Convert column to float64 before calculation
-        X_[self.target_column] = X_[self.target_column].astype('float64')
-        # Use loc to avoid SettingWithCopyWarning
-        X_.loc[:, self.target_column] = (X_[self.target_column] - self.med) / self.iqr
+        # Convert column to float64 and perform calculation all at once using loc
+        X_.loc[:, self.target_column] = ((X_[self.target_column].astype('float64') - self.med) / self.iqr)
         return X_
 
 class CustomKNNTransformer(BaseEstimator, TransformerMixin):
