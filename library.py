@@ -469,8 +469,8 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
         if self.target_column not in X.columns:
             raise AssertionError(f"CustomRobustTransformer.fit unrecognizable column {self.target_column}.")
 
-        # Extract target column
-        col_data = X[self.target_column]
+        # Extract target column and convert to float64
+        col_data = X[self.target_column].astype('float64')
         # Compute median and IQR
         self.med = col_data.median()
         q1 = col_data.quantile(0.25)
@@ -493,6 +493,8 @@ class CustomRobustTransformer(BaseEstimator, TransformerMixin):
             print(f"Skipping transformation for column '{self.target_column}' due to IQR=0")
             return X_
 
+        # Convert column to float64 before calculation
+        X_[self.target_column] = X_[self.target_column].astype('float64')
         # Use loc to avoid SettingWithCopyWarning
         X_.loc[:, self.target_column] = (X_[self.target_column] - self.med) / self.iqr
         return X_
