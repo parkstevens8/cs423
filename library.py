@@ -12,6 +12,7 @@ from sklearn.impute import KNNImputer
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
+from sklearn.model_selection import train_test_split
 import sklearn
 import warnings
 
@@ -704,6 +705,46 @@ def find_random_state(
     rs_value: int = np.abs(np.array(Var) - mean_f1_ratio).argmin()  # Index of value closest to mean
 
     return rs_value, Var
+
+def dataset_setup(original_table, label_column_name: str, the_transformer, rs, ts=0.2, shuffle=True):
+    # Separate features and label
+    X = original_table.drop(columns=[label_column_name])
+    y = original_table[label_column_name]
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=ts, random_state=rs, shuffle=shuffle
+    )
+
+    # Fit-transform with both X and y if required
+    X_train_transformed = the_transformer.fit_transform(X_train, y_train)
+    X_test_transformed = the_transformer.transform(X_test)
+
+    # Convert to NumPy arrays if not already
+    x_train_numpy = X_train_transformed.to_numpy() if hasattr(X_train_transformed, "to_numpy") else X_train_transformed
+    x_test_numpy = X_test_transformed.to_numpy() if hasattr(X_test_transformed, "to_numpy") else X_test_transformed
+    y_train_numpy = y_train.to_numpy()
+    y_test_numpy = y_test.to_numpy()
+
+    return x_train_numpy, x_test_numpy, y_train_numpy, y_test_numpy
+
+def titanic_setup(titanic_table, transformer=titanic_transformer, rs=titanic_variance_based_split, ts=.2):
+  return dataset_setup(
+          original_table=titanic_table,
+          label_column_name='Survived',
+          the_transformer=transformer,
+          rs=rs,
+          ts=ts
+      )
+
+def customer_setup(customer_table, transformer=customer_transformer, rs=customer_variance_based_split, ts=.2):
+  return dataset_setup(
+          original_table=customer_table,
+          label_column_name='Rating',
+          the_transformer=transformer,
+          rs=rs,
+          ts=ts
+      )
 
   
 gender_mapping = {'Male': 0, 'Female': 1, np.nan: -1} #added for nan. You may want to use a different value
