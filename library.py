@@ -715,7 +715,7 @@ customer_variance_based_split = 113
 #first define the pipeline
 titanic_transformer = Pipeline(steps=[
     ('map_gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1})),
-    ('map_class', CustomMappingTransformer('Class', {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3})),
+    ('map_class', CustomMappingTransformer('Class', {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: np.nan})),
     ('target_joined', CustomTargetTransformer(col='Joined', smoothing=10)),
     ('tukey_age', CustomTukeyTransformer(target_column='Age', fence='outer')),
     ('tukey_fare', CustomTukeyTransformer(target_column='Fare', fence='outer')),
@@ -725,10 +725,10 @@ titanic_transformer = Pipeline(steps=[
     ], verbose=True)
 
 customer_transformer = Pipeline(steps=[
-    ('map_os', CustomMappingTransformer('OS', {'Android': 0, 'iOS': 1})),
+    ('map_os', CustomMappingTransformer('OS', {'Android': 0, 'iOS': 1, np.nan: np.nan})),
     ('target_isp', CustomTargetTransformer(col='ISP')),
-    ('map_level', CustomMappingTransformer('Experience Level', {'low': 0, 'medium': 1, 'high': 2})),
-    ('map_gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1})),
+    ('map_level', CustomMappingTransformer('Experience Level', {'low': 0, 'medium': 1, 'high': 2, np.nan: np.nan})),
+    ('map_gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1, np.nan: np.nan})),
     ('tukey_age', CustomTukeyTransformer('Age', 'inner')),  #from chapter 4
     ('tukey_time spent', CustomTukeyTransformer('Time Spent', 'inner')),  #from chapter 4
     ('scale_age', CustomRobustTransformer(target_column='Age')), #from 5
