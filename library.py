@@ -707,9 +707,6 @@ def find_random_state(
     return rs_value, Var
 
   
-gender_mapping = {'Male': 0, 'Female': 1, np.nan: -1} #added for nan. You may want to use a different value
-class_mapping = {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: -1} #added for nan. You may want to use a different value
-experience_map = {'low': 0, 'medium': 1, 'high': 2, np.nan: -1}
 
 # Random state values for reproducibility
 titanic_variance_based_split = 107
@@ -717,8 +714,8 @@ customer_variance_based_split = 113
 
 #first define the pipeline
 titanic_transformer = Pipeline(steps=[
-    ('map_gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1, np.nan: -1})),
-    ('map_class', CustomMappingTransformer('Class', {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3, np.nan: -1})),
+    ('map_gender', CustomMappingTransformer('Gender', {'Male': 0, 'Female': 1})),
+    ('map_class', CustomMappingTransformer('Class', {'Crew': 0, 'C3': 1, 'C2': 2, 'C1': 3})),
     ('target_joined', CustomTargetTransformer(col='Joined', smoothing=10)),
     ('tukey_age', CustomTukeyTransformer(target_column='Age', fence='outer')),
     ('tukey_fare', CustomTukeyTransformer(target_column='Fare', fence='outer')),
