@@ -744,7 +744,7 @@ def dataset_setup(original_table, label_column_name: str, the_transformer, rs, t
 
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=ts, random_state=rs, shuffle=shuffle
+        X, y, test_size=ts, random_state=rs, shuffle=shuffle, stratify=y
     )
 
     # Fit-transform with both X and y if required
